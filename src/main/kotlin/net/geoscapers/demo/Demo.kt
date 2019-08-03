@@ -1,5 +1,6 @@
 package net.geoscapers.demo
 
+import ddf.minim.Minim
 import processing.core.PApplet
 import processing.core.PConstants
 
@@ -12,6 +13,9 @@ class Demo : PApplet() {
 
     var startTime: Long = 0
 
+    val demoLength = 3f * 60f // Seconds
+
+    lateinit var minim: Minim
 
     override fun settings() {
 
@@ -35,9 +39,15 @@ class Demo : PApplet() {
     }
 
     override fun setup() {
-        startTime = millis().toLong()
+        minim = Minim(this)
+        minim.loadFile("demo_music_here.mp3").play()
+
+        frameRate(60f)
+
         noCursor()
-        colorMode(PConstants.HSB, 1f)
+        noStroke()
+        colorMode(PConstants.HSB, 360f, 1f,1f, 1f)
+        startTime = millis().toLong()
     }
 
     override fun draw() {
@@ -45,7 +55,8 @@ class Demo : PApplet() {
         background(0.5f)
 
 
-        delay(10)
+        // Finish it!
+        if (getTimeSeconds() >= demoLength) exit()
     }
 
 
@@ -91,6 +102,57 @@ class Demo : PApplet() {
      */
     fun interpolateOverTime(startSeconds: Float, endSeconds: Float, startValue: Float, endValue: Float): Float {
         return map(getTimeSeconds(), startSeconds, endSeconds, startValue, endValue)
+    }
+
+    /**
+     * @param t goes from 0 to 1 and controls the value produced
+     * @param startValue value when t <= 0
+     * @param midValue value after t >= startRampLength and while t <= 1 - endRampLength
+     * @param endValue value when t >= 1
+     * @param startRampLength length of transition from start to mid value
+     * @param endRampLength length of transition from mid to end value.
+     * @param startDelay t value before starting first ramp
+     * @param endDelay delays the end
+     * @return smoothly interpolated value
+     */
+    fun fadeInOut(
+        t: Float,
+        startValue: Float,
+        midValue: Float,
+        endValue: Float,
+        startDelay: Float = 0.1f,
+        startRampLength: Float = 0.25f,
+        endRampLength: Float = 0.25f,
+        endDelay: Float = 0.1f
+    ): Float {
+        return if (t <= startDelay) {
+            startValue
+        } else if (t > 1f - endDelay) {
+            endValue
+        } else if (t <= startDelay + startRampLength) {
+            smoothInterpolate(startValue, midValue, relativePos(t, startDelay, startDelay + startRampLength))
+        } else if (t > startDelay + startRampLength && t < 1f - endRampLength - endDelay) {
+            midValue
+        } else {
+            smoothInterpolate(midValue, endValue, relativePos(t, 1f - endRampLength - endDelay, 1f - endDelay))
+        }
+    }
+
+    fun smoothInterpolate(a: Float, b: Float, t: Float): Float {
+        // Clamp
+        if (t < 0f) return a
+        if (t > 1f) return b
+
+        //float smoothStepT = t * t * (3f - 2f * t);
+        val t2 = (1f - cos(t * PConstants.PI)) / 2f
+        return lerp(a, b, t2)
+    }
+
+    fun relativePos(value: Float, start: Float, end: Float): Float {
+        if (end == start) return 0.5f
+
+        val t = value - start
+        return t / (end - start)
     }
 
 
